@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PledgeBoard | Public pledges, checked by validators on GenLayer</title>
+<meta name="description" content="Make a public pledge with a deadline and an evidence link. When it is done, GenLayer validators read the page and confirm it, but only with a quote that proves it. Every wallet builds a public kept-or-broken record.">
+<style>
+:root{--bg:#0b0b0e;--card:#14141a;--line:#2a2a34;--fg:#f1f1f4;--mute:#9a9aa8;--acc:#a78bfa;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171}
+@media (prefers-color-scheme: light){:root{--bg:#f6f6f9;--card:#fff;--line:#dcdce6;--fg:#15151c;--mute:#5d5d6d;--acc:#6d4fe0;--ok:#16a34a;--warn:#b45309;--bad:#dc2626}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+.wrap{max-width:960px;margin:0 auto;padding:20px 16px 60px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:8px}
+h1{font-size:26px;margin:0}
+h2{font-size:17px;margin:0 0 12px}
+.sub{color:var(--mute);margin:4px 0 20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+label{display:block;font-size:12px;color:var(--mute);margin:10px 0 4px;text-transform:uppercase;letter-spacing:.04em}
+input,select,textarea{width:100%;background:transparent;color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:10px;font:inherit}
+button{background:var(--acc);color:#fff;border:0;border-radius:10px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer}
+button.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
+button.danger{background:transparent;color:var(--bad);border:1px solid var(--bad)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.grow{flex:1 1 220px}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;word-break:break-all}
+.mute{color:var(--mute)}
+.chip{display:inline-block;padding:2px 10px;border-radius:99px;border:1px solid var(--line);font-size:12px;font-weight:600}
+.chip.PENDING{color:var(--warn)}.chip.CHECKED{color:var(--ok);border-color:var(--ok)}.chip.UNREACHABLE{color:var(--bad)}.chip.SUPPORTED{color:var(--ok);border-color:var(--ok)}.chip.CONTRADICTED{color:var(--bad);border-color:var(--bad)}.chip.NOT_FOUND{color:var(--warn);border-color:var(--warn)}.chip.OPEN{color:var(--warn);border-color:var(--warn)}.chip.KEPT{color:var(--ok);border-color:var(--ok)}.chip.BROKEN{color:var(--bad);border-color:var(--bad)}.chip.NOT_YET{color:var(--warn)}.chip.MIXED{color:var(--warn);border-color:var(--warn)}
+.src{border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0}
+.chip.ok{color:var(--ok);border-color:var(--ok)}
+.item{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;cursor:pointer}
+.item.sel{border-color:var(--acc)}
+textarea{resize:vertical;min-height:84px}
+.quote{border-left:3px solid var(--acc);padding:8px 12px;margin:6px 0;background:rgba(167,139,250,.07);border-radius:0 8px 8px 0;font-style:italic}
+.codebox{display:flex;gap:10px;align-items:center;border:1px dashed var(--acc);border-radius:10px;padding:10px 12px;margin:6px 0}
+.codebox .mono{font-size:15px;font-weight:700;flex:1}
+.tx{border-left:3px solid var(--acc);padding:6px 12px;margin:8px 0;background:rgba(167,139,250,.07);border-radius:0 8px 8px 0}
+.err{color:var(--bad)}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.tabs button{background:transparent;border:1px solid var(--line);color:var(--fg)}
+.tabs button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+ol.how{margin:8px 0 0 18px;padding:0}
+ol.how li{margin:4px 0}
+small{color:var(--mute)}
+.big{font-size:22px;font-weight:800}
+a{color:var(--acc)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>📌 PledgeBoard</h1>
+    <div class="chip">GenLayer Studio network</div>
+  </header>
+  <p class="sub">Say it in public, then prove it. Make a pledge with a deadline and an evidence link. When it is done, validators read the page and confirm it <b>only if they can quote proof</b>. Give up and you mark it <b>broken</b>. Every wallet builds a public record of pledges kept and broken.</p>
+
+  <div class="card" id="boot">Loading GenLayer SDK…</div>
+
+  <div id="app" hidden>
+    <div class="card">
+      <h2>1. Contract and identity</h2>
+      <label>PledgeBoard contract address</label>
+      <input id="contract" spellcheck="false">
+      <div class="row" style="margin-top:12px">
+        <div class="grow">
+          <label>Acting as</label>
+          <select id="who"><option value="A">Account A</option><option value="B">Account B</option></select>
+        </div>
+        <button class="ghost" id="newkeys">Reset demo accounts</button>
+      </div>
+      <p class="mono" style="margin:10px 0 0">A: <span id="addrA"></span></p>
+      <p class="mono" style="margin:2px 0 0">B: <span id="addrB"></span></p>
+      <small>Demo accounts are generated in your browser and kept in local storage. They are free on Studio. A pledge belongs to the account that makes it, and only that account can claim it or mark it broken.</small>
+    </div>
+
+    <div class="tabs">
+      <button class="on" data-tab="board">Public board</button>
+      <button data-tab="mine">My pledges</button>
+      <button data-tab="new">New pledge</button>
+      <button data-tab="record">Track record</button>
+    </div>
+
+    <div id="tab-board">
+      <div class="card">
+        <div class="row"><h2 style="margin:0" class="grow">Latest pledges from everyone</h2><button class="ghost" id="reloadBoard">Reload</button></div>
+        <div id="board" class="mute" style="margin-top:12px">Loading…</div>
+      </div>
+    </div>
+
+    <div id="tab-mine" hidden>
+      <div class="card">
+        <div class="row"><h2 style="margin:0" class="grow">Pledges by the selected account</h2><button class="ghost" id="reload">Reload</button></div>
+        <div id="list" class="mute" style="margin-top:12px">No pledges loaded yet.</div>
+      </div>
+      <div class="card" id="detail" hidden></div>
+    </div>
+
+    <div id="tab-new" hidden>
+      <div class="card">
+        <h2>Make a pledge</h2>
+        <label>The pledge (one sentence, max 300 characters)</label>
+        <textarea id="f_pledge" maxlength="300" placeholder="I will publish the open-source release of my app"></textarea>
+        <label>Deadline</label>
+        <input id="f_deadline" type="date">
+        <label>Evidence page: a public https page that will show it is done</label>
+        <input id="f_url" spellcheck="false" placeholder="https://github.com/you/project/releases">
+        <p class="mute" style="margin:10px 0 0"><small>Pick a page you control that you will update when the pledge is fulfilled (a release page, a README, a blog post). Only https links to public hosts are accepted: localhost, private IP addresses and links with passwords are refused. The contract has no clock, so the deadline is shown to everyone and given to the validators but is not enforced on-chain.</small></p>
+        <div class="row" style="margin-top:14px"><button id="newBtn">Publish pledge</button></div>
+      </div>
+    </div>
+
+    <div id="tab-record" hidden>
+      <div class="card">
+        <h2>Track record of a wallet</h2>
+        <p class="mute" style="margin-top:0">Anyone can look up, no account needed. This is the same <span class="mono">get_record</span> call another contract could make.</p>
+        <label>Wallet address</label>
+        <input id="r_addr" spellcheck="false" placeholder="0x…">
+        <div class="row" style="margin-top:14px"><button id="r_btn">Look up</button><button class="ghost" id="r_me">Use the selected account</button></div>
+        <p id="r_out" style="margin-top:14px" class="mute"></p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Transaction log</h2>
+      <div id="txlog" class="mute">Nothing sent yet.</div>
+    </div>
+  </div>
+  <p class="mute" style="text-align:center"><small>Built on GenLayer Intelligent Contracts · <a href="https://github.com/Obitotobi1/pledgeboard">source on GitHub</a></small></p>
+</div>
+
+<script type="module">
+const DEFAULT_CONTRACT = "0x2be57202477b5a15B86dcd522B84caD03777Eb39";
+const EXAMPLE_OWNER = "0xb2B565655Dd79A3b8aF76e846C22161bC47D044D";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch { return null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch {} }
+};
+
+async function loadSdk() {
+  const tries = [
+    async () => [await import("https://esm.sh/genlayer-js"), await import("https://esm.sh/genlayer-js/chains")],
+    async () => [await import("https://cdn.jsdelivr.net/npm/genlayer-js/+esm"), await import("https://cdn.jsdelivr.net/npm/genlayer-js/chains/+esm")],
+  ];
+  let last;
+  for (const t of tries) { try { return await t(); } catch (e) { last = e; } }
+  throw last;
+}
+
+let sdk, chains, client, accounts = {}, current = "A", selected = null;
+
+function keyFor(slot) {
+  let k = store.get("pb_key_" + slot);
+  if (!k) { k = sdk.generatePrivateKey(); store.set("pb_key_" + slot, k); }
+  return k;
+}
+function makeClient() { client = sdk.createClient({ chain: chains.studionet, account: accounts[current] }); }
+const addr = () => $("contract").value.trim();
+
+function logTx(id, html, cls = "") {
+  const log = $("txlog");
+  if (log.classList.contains("mute")) { log.classList.remove("mute"); log.innerHTML = ""; }
+  let el = document.getElementById("tx_" + id);
+  if (!el) { el = document.createElement("div"); el.id = "tx_" + id; el.className = "tx"; log.prepend(el); }
+  el.className = "tx " + cls;
+  el.innerHTML = html;
+}
+
+// Full lifecycle: sign -> submitted -> consensus (ACCEPTED) -> FINALIZED.
+async function send(label, functionName, args, note) {
+  const id = Date.now() + Math.random().toString(16).slice(2, 6);
+  try {
+    logTx(id, `<b>${esc(label)}</b><br>1/3 Signing and submitting…`);
+    const hash = await client.writeContract({ address: addr(), functionName, args, value: 0n });
+    const base = `<b>${esc(label)}</b><br><span class="mono">${esc(hash)}</span><br>`;
+    logTx(id, base + "2/3 Submitted. " + (note || "Waiting for validators to reach consensus…"));
+    await client.waitForTransactionReceipt({ hash, status: "ACCEPTED", retries: 120, interval: 3000 });
+    logTx(id, base + "3/3 <b style='color:var(--ok)'>Accepted by consensus.</b> Waiting for finality…");
+    await refresh();
+    client.waitForTransactionReceipt({ hash, status: "FINALIZED", retries: 200, interval: 5000 })
+      .then(() => logTx(id, base + "<b style='color:var(--ok)'>Finalized.</b>"))
+      .catch(() => logTx(id, base + "Accepted. Finality is still pending."));
+    return true;
+  } catch (e) {
+    logTx(id, `<b>${esc(label)}</b><br><span class="err">Failed: ${esc(e?.shortMessage || e?.message || e)}</span>`, "err");
+    return false;
+  }
+}
+
+async function read(fn, args) { return client.readContract({ address: addr(), functionName: fn, args }); }
+async function readJson(fn, args) {
+  const raw = await read(fn, args);
+  return JSON.parse(typeof raw === "string" ? raw : JSON.stringify(raw));
+}
+
+async function refreshBoard() {
+  const box = $("board");
+  box.innerHTML = "Loading…";
+  let items = [];
+  try { items = await readJson("get_recent", [20]); }
+  catch (e) { box.innerHTML = `<span class="err">${esc(e?.message || e)}</span>`; return; }
+  if (!items.length) { box.innerHTML = "No pledges yet. Be the first on the <b>New pledge</b> tab."; return; }
+  box.innerHTML = items.map((p) => `
+    <div class="item" style="cursor:default">
+      <div class="row"><b class="grow">#${p.id}</b><span class="chip ${esc(p.status)}">${esc(p.status)}</span></div>
+      <div>${esc(p.pledge)}</div>
+      <div class="mono mute">by ${esc(p.owner.slice(0, 8))}…${esc(p.owner.slice(-4))} · deadline ${esc(p.deadline)}</div>
+    </div>`).join("");
+}
+
+async function refresh() {
+  const box = $("list");
+  box.innerHTML = "Loading…";
+  let items = [];
+  try { items = await readJson("get_pledges_by_owner", [accounts[current].address]); }
+  catch (e) { box.innerHTML = `<span class="err">${esc(e?.message || e)}</span>`; return; }
+  if (!items.length) { box.innerHTML = "No pledges yet for this account. Use the <b>New pledge</b> tab."; $("detail").hidden = true; refreshBoard(); return; }
+  box.innerHTML = items.slice().reverse().map((p) => `
+    <div class="item ${selected === p.id ? "sel" : ""}" data-id="${p.id}">
+      <div class="row"><b class="grow">#${p.id}</b><span class="chip ${esc(p.status)}">${esc(p.status)}</span></div>
+      <div>${esc(p.pledge)}</div>
+      <div class="mono mute">deadline ${esc(p.deadline)}</div>
+    </div>`).join("");
+  box.querySelectorAll(".item").forEach((el) => el.onclick = () => { selected = Number(el.dataset.id); refresh(); });
+  if (selected && items.some((p) => p.id === selected)) renderDetail(await readJson("get_pledge", [selected]));
+  else $("detail").hidden = true;
+  refreshBoard();
+}
+
+function renderDetail(p) {
+  const d = $("detail"); d.hidden = false;
+  const open = p.status === "OPEN";
+  const note = { NOT_YET: "The validators did not find proof on the page that this pledge is fulfilled. Update the page and try again.", UNREACHABLE: "The evidence page could not be read (blocked, empty or down). Try again in a moment." }[p.last_result] || "";
+  d.innerHTML = `
+    <div class="row"><h2 style="margin:0" class="grow">Pledge #${esc(p.id)}</h2><span class="chip ${esc(p.status)}">${esc(p.status)}</span></div>
+    <label>Pledge</label><div>${esc(p.pledge)}</div>
+    <label>Deadline</label><div>${esc(p.deadline)}</div>
+    <label>Evidence page</label><div class="mono">${esc(p.url)}</div>
+    <small>Validator checks used: ${esc(p.attempts)} of 5</small>
+    ${p.status === "KEPT" ? `<p class="big" style="color:var(--ok)">Kept ✓</p><label>Proof quoted from the page</label><div class="quote">${esc(p.quote)}</div><p class="mute"><small>Confirmed by validator consensus and stored on-chain. Any contract can read it with <span class="mono">is_kept(pledge_id)</span>.</small></p>` : ""}
+    ${p.status === "BROKEN" ? `<p class="big" style="color:var(--bad)">Broken ✗</p><p class="mute">The owner admitted this pledge was not kept. It is part of their public record.</p>` : ""}
+    ${open && note ? `<p class="mute"><small>${esc(note)}</small></p>` : ""}
+    ${open ? `<ol class="how"><li>Fulfil the pledge and update the evidence page so it clearly shows it is done.</li><li>Click <b>It is done: ask validators</b>. Each validator reads the page and must agree. A page that only repeats the promise does not count.</li></ol>` : ""}
+    <div class="row" style="margin-top:14px">
+      ${open ? `<button id="keptBtn">It is done: ask validators</button><button class="danger" id="brokenBtn">Mark as broken</button>` : ""}
+    </div>`;
+  if ($("keptBtn")) $("keptBtn").onclick = () => send(`Check pledge #${p.id}`, "claim_kept", [p.id], "Validators are reading the evidence page and agreeing on a verdict. This can take a few minutes.").then(refresh);
+  if ($("brokenBtn")) $("brokenBtn").onclick = () => { if (confirm("Publicly mark this pledge as broken? This cannot be undone.")) send(`Mark pledge #${p.id} broken`, "mark_broken", [p.id]).then(refresh); };
+}
+
+function bind() {
+  document.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => {
+    document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("on", x === b));
+    for (const t of ["board", "mine", "new", "record"]) $("tab-" + t).hidden = t !== b.dataset.tab;
+  });
+  $("contract").value = store.get("pb_contract_v1") || DEFAULT_CONTRACT;
+  $("contract").onchange = () => { store.set("pb_contract_v1", addr()); selected = null; refresh(); };
+  $("who").onchange = () => { current = $("who").value; selected = null; makeClient(); refresh(); };
+  $("reload").onclick = refresh;
+  $("reloadBoard").onclick = refreshBoard;
+  $("newkeys").onclick = () => { if (confirm("Generate new demo accounts? The old ones are lost.")) { store.set("pb_key_A", ""); store.set("pb_key_B", ""); location.reload(); } };
+  $("newBtn").onclick = async () => {
+    const pledge = $("f_pledge").value.trim().replace(/\s+/g, " "), dl = $("f_deadline").value, u = $("f_url").value.trim();
+    if (!pledge || pledge.length > 300) { alert("Write the pledge in 1 to 300 characters."); return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dl)) { alert("Pick a deadline date."); return; }
+    if (!u.startsWith("https://")) { alert("Enter a public evidence link that starts with https://"); return; }
+    const ok = await send("Publish pledge", "make_pledge", [pledge, dl, u]);
+    if (ok) { $("f_pledge").value = ""; document.querySelector('[data-tab="mine"]').click(); }
+  };
+  $("r_me").onclick = () => { $("r_addr").value = accounts[current].address; };
+  $("r_btn").onclick = async () => {
+    const a = $("r_addr").value.trim();
+    if (!/^0x[0-9a-fA-F]{40}$/.test(a)) { alert("Enter a valid wallet address."); return; }
+    $("r_out").textContent = "Looking up…"; $("r_out").classList.add("mute");
+    try {
+      const r = await readJson("get_record", [a]);
+      $("r_out").classList.remove("mute");
+      $("r_out").innerHTML = `<span class="chip KEPT">${esc(r.kept)} kept</span> <span class="chip BROKEN">${esc(r.broken)} broken</span> <span class="chip OPEN">${esc(r.open)} open</span>`;
+    } catch (e) { $("r_out").innerHTML = `<span class="err">${esc(e?.message || e)}</span>`; }
+  };
+}
+
+(async () => {
+  try {
+    const [a, b] = await loadSdk();
+    sdk = a; chains = b;
+    for (const s of ["A", "B"]) accounts[s] = sdk.createAccount(keyFor(s));
+    $("addrA").textContent = accounts.A.address;
+    $("addrB").textContent = accounts.B.address;
+    makeClient(); bind();
+    $("r_addr").value = EXAMPLE_OWNER;
+    $("boot").hidden = true; $("app").hidden = false;
+    refresh();
+  } catch (e) {
+    $("boot").innerHTML = `<span class="err">Could not load the GenLayer SDK: ${esc(e?.message || e)}</span><br><small>Check your connection and reload.</small>`;
+  }
+})();
+</script>
+</body>
+</html>
